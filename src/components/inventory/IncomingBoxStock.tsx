@@ -73,7 +73,7 @@ const IncomingBoxStockComponent = () => {
       price: 89.99,
       boxContents: 12,
       description: "High-performance running shoes with cushioned soles",
-      category: "Sneakers",
+      category: "Boys Shoes",
       createdAt: "2023-06-15T00:00:00Z",
       updatedAt: "2023-06-15T00:00:00Z",
     },
@@ -84,7 +84,7 @@ const IncomingBoxStockComponent = () => {
       price: 59.99,
       boxContents: 10,
       description: "Comfortable everyday sneakers",
-      category: "Sneakers",
+      category: "Girls Shoes",
       createdAt: "2023-06-10T00:00:00Z",
       updatedAt: "2023-06-10T00:00:00Z",
     },
@@ -95,7 +95,7 @@ const IncomingBoxStockComponent = () => {
       price: 129.99,
       boxContents: 8,
       description: "Premium leather boots for formal occasions",
-      category: "Boots",
+      category: "Boys Sandals",
       createdAt: "2023-05-28T00:00:00Z",
       updatedAt: "2023-05-28T00:00:00Z",
     },
@@ -181,16 +181,17 @@ const IncomingBoxStockComponent = () => {
 
     if (!product) return;
 
+    const currentDate = new Date().toISOString();
     const newBoxStock: IncomingBoxStock = {
       id: (boxStocks.length + 1).toString(),
-      incomingDate: formData.get("incomingDate") as string,
+      incomingDate: currentDate,
       productId: productId,
       sku: product.sku,
       boxesReceived: boxesReceived,
       description: formData.get("description") as string,
       totalUnits: boxesReceived * boxContents,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: currentDate,
+      updatedAt: currentDate,
     };
 
     setBoxStocks([...boxStocks, newBoxStock]);
@@ -208,7 +209,12 @@ const IncomingBoxStockComponent = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   };
 
   return (
@@ -368,11 +374,18 @@ const IncomingBoxStockComponent = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="incomingDate">Incoming Date</Label>
-                  <Input
+                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
+                    {new Date().toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </div>
+                  <input
+                    type="hidden"
                     id="incomingDate"
                     name="incomingDate"
-                    type="date"
-                    required
+                    value={new Date().toISOString()}
                   />
                 </div>
                 <div className="space-y-2">

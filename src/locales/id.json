@@ -1,0 +1,103 @@
+{
+  "common": {
+    "search": "Cari",
+    "filter": "Filter",
+    "add": "Tambah",
+    "edit": "Edit",
+    "delete": "Hapus",
+    "view": "Lihat",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "close": "Tutup",
+    "confirm": "Konfirmasi",
+    "actions": "Tindakan",
+    "or": "atau",
+    "all": "Semua",
+    "unknown": "Tidak Diketahui",
+    "showing": "Menampilkan",
+    "of": "dari",
+    "items": "item",
+    "optional": "Opsional",
+    "saveChanges": "Simpan Perubahan"
+  },
+  "navigation": {
+    "dashboard": "Dasbor",
+    "inventory": "Inventaris",
+    "products": "Produk",
+    "settings": "Pengaturan",
+    "users": "Pengguna",
+    "language": "Bahasa"
+  },
+  "inventory": {
+    "boxedInventory": "Manajemen Inventaris Kotak",
+    "boxedInventoryDesc": "Kelola inventaris kotak grosir",
+    "individualInventory": "Manajemen Inventaris Individual",
+    "individualInventoryDesc": "Kelola inventaris pasangan individual dengan varian ukuran dan warna",
+    "incomingStock": "Stok Kotak Masuk",
+    "incomingStockDesc": "Kelola pengiriman masuk inventaris kotak",
+    "overview": "Ikhtisar Inventaris",
+    "overviewDesc": "Pantau metrik dan tren inventaris Anda secara sekilas",
+    "stockOpname": "Stok Opname",
+    "stockOpnameDesc": "Rekonsiliasi inventaris fisik",
+    "addBoxStock": "Tambah Stok Kotak",
+    "recordIncomingStock": "Catat Stok Masuk",
+    "addNewPair": "Tambah Pasangan Baru"
+  },
+  "product": {
+    "productMaster": "Master Produk",
+    "productMasterDesc": "Kelola katalog produk",
+    "addProduct": "Tambah Produk",
+    "editProduct": "Edit Produk",
+    "viewProduct": "Detail Produk",
+    "deleteProduct": "Konfirmasi Penghapusan"
+  },
+  "fields": {
+    "sku": "SKU",
+    "productName": "Nama Produk",
+    "category": "Kategori",
+    "boxQuantity": "Jumlah Kotak",
+    "pairsPerBox": "Pasangan Per Kotak",
+    "totalPairs": "Total Pasangan",
+    "lastUpdated": "Terakhir Diperbarui",
+    "status": "Status",
+    "size": "Ukuran",
+    "color": "Warna",
+    "location": "Lokasi",
+    "manufactureDate": "Tanggal Produksi",
+    "price": "Harga",
+    "boxContents": "Isi Kotak",
+    "description": "Deskripsi",
+    "incomingDate": "Tanggal Masuk",
+    "boxesReceived": "Kotak Diterima",
+    "totalUnits": "Total Unit",
+    "notes": "Catatan"
+  },
+  "status": {
+    "inStock": "Tersedia",
+    "lowStock": "Stok Rendah",
+    "outOfStock": "Habis"
+  },
+  "categories": {
+    "athletic": "Atletik",
+    "casual": "Kasual",
+    "formal": "Formal",
+    "seasonal": "Musiman",
+    "sports": "Olahraga",
+    "sandals": "Sandal"
+  },
+  "dialogs": {
+    "addBoxStockDesc": "Masukkan detail untuk stok kotak baru yang akan ditambahkan ke inventaris.",
+    "editBoxStock": "Edit Stok Kotak",
+    "editBoxStockDesc": "Perbarui detail untuk item stok kotak ini.",
+    "boxStockDetails": "Detail Stok Kotak",
+    "boxStockDetailsDesc": "Informasi detail tentang item stok kotak ini.",
+    "confirmDeletion": "Konfirmasi Penghapusan",
+    "deleteBoxStockConfirmation": "Apakah Anda yakin ingin menghapus item stok kotak ini? Tindakan ini tidak dapat dibatalkan."
+  },
+  "placeholders": {
+    "enterSku": "Masukkan kode SKU",
+    "enterProductName": "Masukkan nama produk",
+    "selectCategory": "Pilih kategori",
+    "additionalInfo": "Informasi tambahan"
+  }
+}

@@ -16,7 +16,7 @@ import {
   Home,
   Package,
   Search,
-  Settings,
+  Settings as SettingsIcon,
   ShoppingBag,
   Users,
   Clipboard,
@@ -29,11 +29,11 @@ import IndividualInventory from "./inventory/IndividualInventory";
 import StockOpname from "./inventory/StockOpname";
 import ProductMaster from "./product/ProductMaster";
 import IncomingBoxStockComponent from "./inventory/IncomingBoxStock";
-import { useNavigate } from "react-router-dom";
+import UserManagement from "./admin/UserManagement";
+import Settings from "./admin/Settings";
 
 const HomePage = () => {
   const [activeTab, setActiveTab] = React.useState("overview");
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -93,12 +93,20 @@ const HomePage = () => {
             <Box className="h-4 w-4" />
             Stock Opname
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-2">
+          <Button
+            variant={activeTab === "users" ? "default" : "ghost"}
+            className="w-full justify-start gap-2"
+            onClick={() => setActiveTab("users")}
+          >
             <Users className="h-4 w-4" />
             User Management
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-2">
-            <Settings className="h-4 w-4" />
+          <Button
+            variant={activeTab === "settings" ? "default" : "ghost"}
+            className="w-full justify-start gap-2"
+            onClick={() => setActiveTab("settings")}
+          >
+            <SettingsIcon className="h-4 w-4" />
             Settings
           </Button>
         </nav>
@@ -165,6 +173,8 @@ const HomePage = () => {
               <TabsTrigger value="boxed">Boxed Inventory</TabsTrigger>
               <TabsTrigger value="individual">Individual Pairs</TabsTrigger>
               <TabsTrigger value="stockopname">Stock Opname</TabsTrigger>
+              <TabsTrigger value="users">User Management</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview">
@@ -189,6 +199,14 @@ const HomePage = () => {
 
             <TabsContent value="stockopname">
               <StockOpname />
+            </TabsContent>
+
+            <TabsContent value="users">
+              <UserManagement />
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <Settings />
             </TabsContent>
           </Tabs>
         </main>

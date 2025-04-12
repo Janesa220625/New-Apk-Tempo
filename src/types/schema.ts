@@ -8,6 +8,7 @@ export interface Product {
   box_contents: number; // Number of pairs per box
   description?: string; // Optional product description
   category: string; // Product category (e.g., Sneakers, Boots)
+  creator_id?: string; // ID of the user who created the product
   created_at: string;
   updated_at: string;
 }

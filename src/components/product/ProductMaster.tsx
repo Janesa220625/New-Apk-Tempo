@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useUser } from "@supabase/auth-helpers-react";
 import {
   Plus,
   Search,
@@ -8,7 +10,10 @@ import {
   Trash2,
   Edit,
   Eye,
+  Loader2,
 } from "lucide-react";
+import { formatRupiah } from "@/utils/currency";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -54,8 +59,10 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Product } from "@/types/schema";
+import { productService } from "@/services/productService";
+import { useToast } from "@/components/ui/use-toast";
 
-const ProductMaster = () => {
+export default function ProductMaster() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -63,67 +70,34 @@ const ProductMaster = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const user = useUser();
 
-  // Mock data for demonstration
-  const mockProductData: Product[] = [
-    {
-      id: "1",
-      sku: "SN-001",
-      name: "Running Shoes Model X",
-      price: 89.99,
-      boxContents: 12,
-      description: "High-performance running shoes with cushioned soles",
-      category: "Sneakers",
-      createdAt: "2023-06-15T00:00:00Z",
-      updatedAt: "2023-06-15T00:00:00Z",
-    },
-    {
-      id: "2",
-      sku: "SN-002",
-      name: "Casual Sneakers Y",
-      price: 59.99,
-      boxContents: 10,
-      description: "Comfortable everyday sneakers",
-      category: "Sneakers",
-      createdAt: "2023-06-10T00:00:00Z",
-      updatedAt: "2023-06-10T00:00:00Z",
-    },
-    {
-      id: "3",
-      sku: "BT-001",
-      name: "Leather Boots Z",
-      price: 129.99,
-      boxContents: 8,
-      description: "Premium leather boots for formal occasions",
-      category: "Boots",
-      createdAt: "2023-05-28T00:00:00Z",
-      updatedAt: "2023-05-28T00:00:00Z",
-    },
-    {
-      id: "4",
-      sku: "SD-001",
-      name: "Summer Sandals",
-      price: 49.99,
-      boxContents: 20,
-      description: "Lightweight summer sandals",
-      category: "Women's Sandals",
-      createdAt: "2023-06-12T00:00:00Z",
-      updatedAt: "2023-06-12T00:00:00Z",
-    },
-    {
-      id: "5",
-      sku: "BT-002",
-      name: "Winter Boots",
-      price: 149.99,
-      boxContents: 6,
-      description: "Insulated winter boots for cold weather",
-      category: "Boots",
-      createdAt: "2023-06-01T00:00:00Z",
-      updatedAt: "2023-06-01T00:00:00Z",
-    },
-  ];
+  // Fetch products from Supabase
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const data = await productService.getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load products. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const [products, setProducts] = useState<Product[]>(mockProductData);
+  // Load products on component mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -149,67 +123,114 @@ const ProductMaster = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleAddProduct = (formData: FormData) => {
-    // In a real application, this would be an API call
-    const newProduct: Product = {
-      id: (products.length + 1).toString(),
-      sku: formData.get("sku") as string,
-      name: formData.get("name") as string,
-      price: parseFloat(formData.get("price") as string),
-      boxContents: parseInt(formData.get("boxContents") as string),
-      description: formData.get("description") as string,
-      category: formData.get("category") as string,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const handleAddProduct = async (formData: FormData) => {
+    setIsSubmitting(true);
+    try {
+      const newProduct = {
+        sku: formData.get("sku") as string,
+        name: formData.get("name") as string,
+        price: parseFloat(formData.get("price") as string),
+        box_contents: parseInt(formData.get("box_contents") as string),
+        description: formData.get("description") as string,
+        category: formData.get("category") as string,
+      };
 
-    setProducts([...products, newProduct]);
-    setIsAddDialogOpen(false);
+      // Pass the current user's ID when creating a product
+      await productService.createProduct(newProduct, user?.id);
+      toast({
+        title: "Success",
+        description: "Product added successfully",
+      });
+      fetchProducts();
+      setIsAddDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error adding product:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to add product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleUpdateProduct = (formData: FormData) => {
+  const handleUpdateProduct = async (formData: FormData) => {
     if (!selectedProduct) return;
+    setIsSubmitting(true);
+    try {
+      const updatedProduct = {
+        sku: formData.get("sku") as string,
+        name: formData.get("name") as string,
+        price: parseFloat(formData.get("price") as string),
+        box_contents: parseInt(formData.get("box_contents") as string),
+        description: formData.get("description") as string,
+        category: formData.get("category") as string,
+      };
 
-    // In a real application, this would be an API call
-    const updatedProduct: Product = {
-      ...selectedProduct,
-      sku: formData.get("sku") as string,
-      name: formData.get("name") as string,
-      price: parseFloat(formData.get("price") as string),
-      boxContents: parseInt(formData.get("boxContents") as string),
-      description: formData.get("description") as string,
-      category: formData.get("category") as string,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setProducts(
-      products.map((product) =>
-        product.id === selectedProduct.id ? updatedProduct : product,
-      ),
-    );
-    setIsEditDialogOpen(false);
+      await productService.updateProduct(selectedProduct.id, updatedProduct);
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+      fetchProducts();
+      setIsEditDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error updating product:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to update product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!selectedProduct) return;
-
-    // In a real application, this would be an API call
-    setProducts(
-      products.filter((product) => product.id !== selectedProduct.id),
-    );
-    setIsDeleteDialogOpen(false);
+    setIsSubmitting(true);
+    try {
+      await productService.deleteProduct(selectedProduct.id);
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+      fetchProducts();
+      setIsDeleteDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error deleting product:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to delete product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const { t } = useTranslation();
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Product Master</h1>
-          <p className="text-gray-500">Manage product catalog</p>
+          <h1 className="text-2xl font-bold">{t("product.productMaster")}</h1>
+          <p className="text-gray-500">{t("product.productMasterDesc")}</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> {t("product.addProduct")}
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-6">
@@ -223,7 +244,7 @@ const ProductMaster = () => {
                   placeholder="Search by SKU or product name..."
                   className="pl-8"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
                 />
               </div>
             </div>
@@ -237,19 +258,26 @@ const ProductMaster = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Sneakers">Sneakers</SelectItem>
-                  <SelectItem value="Boots">Boots</SelectItem>
-                  <SelectItem value="Men's Sandals">Men's Sandals</SelectItem>
-                  <SelectItem value="Women's Sandals">
-                    Women's Sandals
-                  </SelectItem>
+                  <SelectItem value="Boys Shoes">Boys Shoes</SelectItem>
+                  <SelectItem value="Girls Shoes">Girls Shoes</SelectItem>
+                  <SelectItem value="Boys Sandals">Boys Sandals</SelectItem>
+                  <SelectItem value="Girls Sandals">Girls Sandals</SelectItem>
                 </SelectContent>
               </Select>
               <Button variant="outline" size="icon">
                 <Filter className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon">
-                <RefreshCw className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchProducts}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
               </Button>
               <Button variant="outline" size="icon">
                 <Download className="h-4 w-4" />
@@ -261,53 +289,86 @@ const ProductMaster = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Box Contents</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("fields.sku")}</TableHead>
+                  <TableHead>{t("fields.productName")}</TableHead>
+                  <TableHead>{t("fields.category")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("fields.price")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("fields.boxContents")}
+                  </TableHead>
+                  <TableHead>{t("fields.creator")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("common.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.sku}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.category}</TableCell>
-                    <TableCell className="text-right">
-                      ${product.price.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {product.boxContents} pairs
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewProduct(product)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditProduct(product)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteProduct(product)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex justify-center items-center">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                        <span>Loading products...</span>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      No products found.{" "}
+                      {searchQuery &&
+                        `Try a different search term than "${searchQuery}".`}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">
+                        {product.sku}
+                      </TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.category}</TableCell>
+                      <TableCell className="text-right">
+                        {formatRupiah(product.price)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.box_contents} pairs
+                      </TableCell>
+                      <TableCell>
+                        {product.creator_id
+                          ? product.creator_id.substring(0, 8) + "..."
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewProduct(product)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditProduct(product)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteProduct(product)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -316,6 +377,9 @@ const ProductMaster = () => {
           <div className="w-full flex justify-between items-center">
             <div className="text-sm text-gray-500">
               Showing {filteredProducts.length} of {products.length} products
+              {searchQuery && (
+                <span className="ml-2">filtered by "{searchQuery}"</span>
+              )}
             </div>
             <Pagination>
               <PaginationContent>
@@ -346,7 +410,7 @@ const ProductMaster = () => {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
+            <DialogTitle>{t("product.addProduct")}</DialogTitle>
             <DialogDescription>
               Enter the details for the new product to add to the catalog.
             </DialogDescription>
@@ -360,7 +424,7 @@ const ProductMaster = () => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sku">SKU Code</Label>
+                  <Label htmlFor="sku">{t("fields.sku")}</Label>
                   <Input
                     id="sku"
                     name="sku"
@@ -369,7 +433,7 @@ const ProductMaster = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="name">Product Name</Label>
+                  <Label htmlFor="name">{t("fields.productName")}</Label>
                   <Input
                     id="name"
                     name="name"
@@ -380,7 +444,7 @@ const ProductMaster = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price (per pair)</Label>
+                  <Label htmlFor="price">{t("fields.price")} (per pair)</Label>
                   <Input
                     id="price"
                     name="price"
@@ -392,12 +456,12 @@ const ProductMaster = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="boxContents">
-                    Box Contents (pairs per box)
+                  <Label htmlFor="box_contents">
+                    {t("fields.boxContents")} (pairs per box)
                   </Label>
                   <Input
-                    id="boxContents"
-                    name="boxContents"
+                    id="box_contents"
+                    name="box_contents"
                     type="number"
                     min="1"
                     placeholder="1"
@@ -406,23 +470,23 @@ const ProductMaster = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">{t("fields.category")}</Label>
                 <Select name="category" defaultValue="Sneakers">
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Sneakers">Sneakers</SelectItem>
-                    <SelectItem value="Boots">Boots</SelectItem>
-                    <SelectItem value="Men's Sandals">Men's Sandals</SelectItem>
-                    <SelectItem value="Women's Sandals">
-                      Women's Sandals
-                    </SelectItem>
+                    <SelectItem value="Boys Shoes">Boys Shoes</SelectItem>
+                    <SelectItem value="Girls Shoes">Girls Shoes</SelectItem>
+                    <SelectItem value="Boys Sandals">Boys Sandals</SelectItem>
+                    <SelectItem value="Girls Sandals">Girls Sandals</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">
+                  {t("fields.description")} (Optional)
+                </Label>
                 <Input
                   id="description"
                   name="description"
@@ -438,7 +502,16 @@ const ProductMaster = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit">Add Product</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t("common.saving")}
+                  </>
+                ) : (
+                  t("product.addProduct")
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -448,7 +521,7 @@ const ProductMaster = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
+            <DialogTitle>{t("product.editProduct")}</DialogTitle>
             <DialogDescription>
               Update the details for this product.
             </DialogDescription>
@@ -495,15 +568,15 @@ const ProductMaster = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-boxContents">
+                    <Label htmlFor="edit-box_contents">
                       Box Contents (pairs per box)
                     </Label>
                     <Input
-                      id="edit-boxContents"
-                      name="boxContents"
+                      id="edit-box_contents"
+                      name="box_contents"
                       type="number"
                       min="1"
-                      defaultValue={selectedProduct.boxContents}
+                      defaultValue={selectedProduct.box_contents}
                       required
                     />
                   </div>
@@ -518,13 +591,11 @@ const ProductMaster = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Sneakers">Sneakers</SelectItem>
-                      <SelectItem value="Boots">Boots</SelectItem>
-                      <SelectItem value="Men's Sandals">
-                        Men's Sandals
-                      </SelectItem>
-                      <SelectItem value="Women's Sandals">
-                        Women's Sandals
+                      <SelectItem value="Boys Shoes">Boys Shoes</SelectItem>
+                      <SelectItem value="Girls Shoes">Girls Shoes</SelectItem>
+                      <SelectItem value="Boys Sandals">Boys Sandals</SelectItem>
+                      <SelectItem value="Girls Sandals">
+                        Girls Sandals
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -548,7 +619,16 @@ const ProductMaster = () => {
                 >
                   Cancel
                 </Button>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t("common.saving")}
+                    </>
+                  ) : (
+                    t("common.save")
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -559,7 +639,7 @@ const ProductMaster = () => {
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Product Details</DialogTitle>
+            <DialogTitle>{t("product.viewProduct")}</DialogTitle>
             <DialogDescription>
               Detailed information about this product.
             </DialogDescription>
@@ -590,7 +670,7 @@ const ProductMaster = () => {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Price</h3>
                   <p className="mt-1">
-                    ${selectedProduct.price.toFixed(2)} per pair
+                    {formatRupiah(selectedProduct.price)} per pair
                   </p>
                 </div>
               </div>
@@ -599,7 +679,7 @@ const ProductMaster = () => {
                   Box Contents
                 </h3>
                 <p className="mt-1">
-                  {selectedProduct.boxContents} pairs per box
+                  {selectedProduct.box_contents} pairs per box
                 </p>
               </div>
               <div>
@@ -610,13 +690,21 @@ const ProductMaster = () => {
                   {selectedProduct.description || "No description provided"}
                 </p>
               </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Creator ID
+                </h3>
+                <p className="mt-1">
+                  {selectedProduct.creator_id || "No creator information"}
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
                     Created At
                   </h3>
                   <p className="mt-1">
-                    {new Date(selectedProduct.createdAt).toLocaleDateString()}
+                    {new Date(selectedProduct.created_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div>
@@ -624,14 +712,16 @@ const ProductMaster = () => {
                     Last Updated
                   </h3>
                   <p className="mt-1">
-                    {new Date(selectedProduct.updatedAt).toLocaleDateString()}
+                    {new Date(selectedProduct.updated_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+            <Button onClick={() => setIsViewDialogOpen(false)}>
+              {t("common.close")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -640,7 +730,7 @@ const ProductMaster = () => {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>{t("product.deleteProduct")}</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete this product? This action cannot
               be undone.
@@ -666,16 +756,25 @@ const ProductMaster = () => {
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete}>
-              Delete
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("common.deleting")}
+                </>
+              ) : (
+                t("common.delete")
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default ProductMaster;
+}

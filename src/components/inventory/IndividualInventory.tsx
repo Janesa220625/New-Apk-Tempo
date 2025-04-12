@@ -66,7 +66,7 @@ const mockInventoryData: InventoryItem[] = [
     name: "Running Shoes Pro",
     size: "42",
     color: "Black",
-    category: "Sports",
+    category: "Boys Shoes",
     location: "Warehouse A",
     manufactureDate: "2023-05-15",
     status: "In Stock",
@@ -77,7 +77,7 @@ const mockInventoryData: InventoryItem[] = [
     name: "Running Shoes Pro",
     size: "40",
     color: "Red",
-    category: "Sports",
+    category: "Boys Shoes",
     location: "Warehouse A",
     manufactureDate: "2023-05-15",
     status: "Low Stock",
@@ -88,7 +88,7 @@ const mockInventoryData: InventoryItem[] = [
     name: "Casual Sneakers",
     size: "38",
     color: "White",
-    category: "Casual",
+    category: "Girls Shoes",
     location: "Warehouse B",
     manufactureDate: "2023-06-20",
     status: "In Stock",
@@ -99,7 +99,7 @@ const mockInventoryData: InventoryItem[] = [
     name: "Leather Boots",
     size: "44",
     color: "Brown",
-    category: "Formal",
+    category: "Boys Sandals",
     location: "Warehouse C",
     manufactureDate: "2023-04-10",
     status: "Out of Stock",
@@ -110,7 +110,7 @@ const mockInventoryData: InventoryItem[] = [
     name: "Canvas Shoes",
     size: "41",
     color: "Blue",
-    category: "Casual",
+    category: "Girls Shoes",
     location: "Warehouse A",
     manufactureDate: "2023-07-05",
     status: "In Stock",
@@ -244,9 +244,14 @@ const IndividualInventory = () => {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sports">Sports</SelectItem>
-                        <SelectItem value="casual">Casual</SelectItem>
-                        <SelectItem value="formal">Formal</SelectItem>
+                        <SelectItem value="boys-shoes">Boys Shoes</SelectItem>
+                        <SelectItem value="girls-shoes">Girls Shoes</SelectItem>
+                        <SelectItem value="boys-sandals">
+                          Boys Sandals
+                        </SelectItem>
+                        <SelectItem value="girls-sandals">
+                          Girls Sandals
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -644,9 +649,12 @@ const IndividualInventory = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sports">Sports</SelectItem>
-                      <SelectItem value="casual">Casual</SelectItem>
-                      <SelectItem value="formal">Formal</SelectItem>
+                      <SelectItem value="boys-shoes">Boys Shoes</SelectItem>
+                      <SelectItem value="girls-shoes">Girls Shoes</SelectItem>
+                      <SelectItem value="boys-sandals">Boys Sandals</SelectItem>
+                      <SelectItem value="girls-sandals">
+                        Girls Sandals
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
