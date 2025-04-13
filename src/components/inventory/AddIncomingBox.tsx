@@ -17,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Product } from "@/types/schema";
+import SupplierName from "@/components/common/SupplierName";
 
 interface AddIncomingBoxProps {
   onBoxAdded?: () => void;
@@ -267,16 +268,11 @@ const AddIncomingBox: React.FC<AddIncomingBoxProps> = ({
                   })}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplierName">Supplier Name</Label>
-                <Input
-                  id="supplierName"
-                  placeholder="Enter supplier name"
-                  value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  required
-                />
-              </div>
+              <SupplierName
+                value={supplierName}
+                onChange={setSupplierName}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
