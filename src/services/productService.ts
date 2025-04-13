@@ -16,6 +16,8 @@ export const productService = {
       throw error;
     }
 
+    // Log the fetched products for debugging
+    console.log("Fetched products from Supabase:", data);
     return data as Product[];
   },
 
@@ -46,9 +48,18 @@ export const productService = {
     product: InsertType<"products">,
     userId?: string,
   ): Promise<Product> {
+    // Add timestamp for better tracking
+    const timestamp = new Date().toISOString();
     const productWithCreator = userId
-      ? { ...product, creator_id: userId }
-      : product;
+      ? {
+          ...product,
+          creator_id: userId,
+          created_at: timestamp,
+          updated_at: timestamp,
+        }
+      : { ...product, created_at: timestamp, updated_at: timestamp };
+
+    console.log("Creating product with data:", productWithCreator);
 
     const { data, error } = await supabase
       .from("products")
@@ -61,6 +72,7 @@ export const productService = {
       throw error;
     }
 
+    console.log("Successfully created product:", data);
     return data as Product;
   },
 

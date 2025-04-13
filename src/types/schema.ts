@@ -19,8 +19,10 @@ export interface IncomingBoxStock {
   product_id: string; // Reference to Product
   sku: string; // Denormalized for quick access
   boxes_received: number;
+  supplier_name?: string; // Name of the supplier who sent the stock
   description?: string;
   total_units: number; // Calculated field (boxes_received * box_contents)
+  creator_id?: string; // ID of the user who created the record
   created_at: string;
   updated_at: string;
 }

@@ -80,7 +80,9 @@ export default function ProductMaster() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching products...");
       const data = await productService.getProducts();
+      console.log("Products fetched successfully:", data);
       setProducts(data);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -97,12 +99,19 @@ export default function ProductMaster() {
   // Load products on component mount
   useEffect(() => {
     fetchProducts();
+
+    // Set up a refresh interval to ensure products are up to date
+    const refreshInterval = setInterval(() => {
+      fetchProducts();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
       selectedCategory === "all" || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -135,13 +144,22 @@ export default function ProductMaster() {
         category: formData.get("category") as string,
       };
 
+      console.log("Adding new product:", newProduct);
+
       // Pass the current user's ID when creating a product
-      await productService.createProduct(newProduct, user?.id);
+      const createdProduct = await productService.createProduct(
+        newProduct,
+        user?.id,
+      );
+      console.log("Product created successfully:", createdProduct);
+
       toast({
         title: "Success",
         description: "Product added successfully",
       });
-      fetchProducts();
+
+      // Immediately fetch products to update the list
+      await fetchProducts();
       setIsAddDialogOpen(false);
     } catch (error: any) {
       console.error("Error adding product:", error);
@@ -174,7 +192,7 @@ export default function ProductMaster() {
         title: "Success",
         description: "Product updated successfully",
       });
-      fetchProducts();
+      await fetchProducts();
       setIsEditDialogOpen(false);
     } catch (error: any) {
       console.error("Error updating product:", error);
@@ -198,7 +216,7 @@ export default function ProductMaster() {
         title: "Success",
         description: "Product deleted successfully",
       });
-      fetchProducts();
+      await fetchProducts();
       setIsDeleteDialogOpen(false);
     } catch (error: any) {
       console.error("Error deleting product:", error);
@@ -285,6 +303,20 @@ export default function ProductMaster() {
             </div>
           </div>
 
+          {/* Debug info - can be removed in production */}
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-100 rounded text-sm">
+            <div>
+              <strong>Debug Info:</strong>
+            </div>
+            <div>Products loaded: {products.length}</div>
+            {products.length > 0 && (
+              <div>
+                Latest product: {products[0]?.name || "None"} (SKU:{" "}
+                {products[0]?.sku || "None"})
+              </div>
+            )}
+          </div>
+
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -307,7 +339,7 @@ export default function ProductMaster() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex justify-center items-center">
                         <Loader2 className="h-6 w-6 animate-spin mr-2" />
                         <span>Loading products...</span>
@@ -316,7 +348,7 @@ export default function ProductMaster() {
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       No products found.{" "}
                       {searchQuery &&
                         `Try a different search term than "${searchQuery}".`}
@@ -471,7 +503,7 @@ export default function ProductMaster() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">{t("fields.category")}</Label>
-                <Select name="category" defaultValue="Sneakers">
+                <Select name="category" defaultValue="Boys Shoes">
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>

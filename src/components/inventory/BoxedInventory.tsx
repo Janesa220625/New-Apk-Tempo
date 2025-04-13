@@ -1,24 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Plus,
   Search,
   Filter,
   RefreshCw,
   Download,
-  Trash2,
-  Edit,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Table,
   TableHeader,
@@ -34,7 +25,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -43,7 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
@@ -54,101 +43,75 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useTranslation } from "react-i18next";
-
-interface BoxInventoryItem {
-  id: string;
-  sku: string;
-  productName: string;
-  category: string;
-  boxQuantity: number;
-  pairsPerBox: number;
-  totalPairs: number;
-  lastUpdated: string;
-  status: "In Stock" | "Low Stock" | "Out of Stock";
-}
+import {
+  useIncomingBoxStock,
+  BoxedInventorySummary,
+} from "@/hooks/useIncomingBoxStock";
 
 const BoxedInventory = () => {
   const { t } = useTranslation();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<BoxInventoryItem | null>(
-    null,
-  );
+  const [selectedItem, setSelectedItem] =
+    useState<BoxedInventorySummary | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // Mock data for demonstration
-  const mockInventoryData: BoxInventoryItem[] = [
-    {
-      id: "1",
-      sku: "SH-RN-001",
-      productName: "Running Shoes Model X",
-      category: "Boys Shoes",
-      boxQuantity: 25,
-      pairsPerBox: 12,
-      totalPairs: 300,
-      lastUpdated: "2023-06-15",
-      status: "In Stock",
-    },
-    {
-      id: "2",
-      sku: "SH-CS-002",
-      productName: "Casual Sneakers Y",
-      category: "Girls Shoes",
-      boxQuantity: 8,
-      pairsPerBox: 10,
-      totalPairs: 80,
-      lastUpdated: "2023-06-10",
-      status: "Low Stock",
-    },
-    {
-      id: "3",
-      sku: "SH-DR-003",
-      productName: "Dress Shoes Z",
-      category: "Boys Sandals",
-      boxQuantity: 0,
-      pairsPerBox: 8,
-      totalPairs: 0,
-      lastUpdated: "2023-05-28",
-      status: "Out of Stock",
-    },
-    {
-      id: "4",
-      sku: "SH-SD-004",
-      productName: "Summer Sandals",
-      category: "Girls Shoes",
-      boxQuantity: 15,
-      pairsPerBox: 20,
-      totalPairs: 300,
-      lastUpdated: "2023-06-12",
-      status: "In Stock",
-    },
-    {
-      id: "5",
-      sku: "SH-BT-005",
-      productName: "Winter Boots",
-      category: "Girls Sandals",
-      boxQuantity: 12,
-      pairsPerBox: 6,
-      totalPairs: 72,
-      lastUpdated: "2023-06-01",
-      status: "In Stock",
-    },
-  ];
+  // Use the hook to get the boxed inventory summary
+  const {
+    boxedInventorySummary,
+    isLoading,
+    error,
+    fetchBoxStocks,
+    fetchProducts,
+    formatDate,
+  } = useIncomingBoxStock();
 
-  const handleViewItem = (item: BoxInventoryItem) => {
+  // Load data on component mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadData = async () => {
+      try {
+        await fetchProducts();
+        if (isMounted) {
+          await fetchBoxStocks();
+        }
+      } catch (err) {
+        console.error("Error loading initial data:", err);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter inventory data based on search query, category, and status
+  const filteredInventory = boxedInventorySummary.filter((item) => {
+    // Filter by search query
+    const matchesSearch =
+      !searchQuery ||
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.productName.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Filter by category
+    const matchesCategory =
+      categoryFilter === "all" ||
+      item.category.toLowerCase().replace(" ", "-") === categoryFilter;
+
+    // Filter by status
+    const matchesStatus =
+      statusFilter === "all" ||
+      item.status.toLowerCase().replace(" ", "-") === statusFilter;
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const handleViewItem = (item: BoxedInventorySummary) => {
     setSelectedItem(item);
     setIsViewDialogOpen(true);
-  };
-
-  const handleEditItem = (item: BoxInventoryItem) => {
-    setSelectedItem(item);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeleteItem = (item: BoxInventoryItem) => {
-    setSelectedItem(item);
-    setIsDeleteDialogOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -169,13 +132,15 @@ const BoxedInventory = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">
-            {t("inventory.boxedInventory")}
+            {t("inventory.boxedInventory", "Boxed Inventory")}
           </h1>
-          <p className="text-gray-500">{t("inventory.boxedInventoryDesc")}</p>
+          <p className="text-gray-500">
+            {t(
+              "inventory.boxedInventoryDesc",
+              "Summary of available box stock across all warehouses",
+            )}
+          </p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> {t("inventory.addBoxStock")}
-        </Button>
       </div>
 
       <Card className="mb-6">
@@ -186,19 +151,22 @@ const BoxedInventory = () => {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   type="search"
-                  placeholder={`${t("common.search")} ${t("fields.sku")} ${t("common.or")} ${t("fields.productName")}...`}
+                  placeholder={`${t("common.search", "Search")} ${t("fields.sku", "SKU")} ${t("common.or", "or")} ${t("fields.productName", "product name")}...`}
                   className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
             <div className="flex gap-2">
-              <Select defaultValue="all">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={t("fields.category")} />
+                  <SelectValue placeholder={t("fields.category", "Category")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
-                    {t("common.all")} {t("fields.category")}
+                    {t("common.all", "All")}{" "}
+                    {t("fields.category", "Categories")}
                   </SelectItem>
                   <SelectItem value="boys-shoes">Boys Shoes</SelectItem>
                   <SelectItem value="girls-shoes">Girls Shoes</SelectItem>
@@ -206,30 +174,42 @@ const BoxedInventory = () => {
                   <SelectItem value="girls-sandals">Girls Sandals</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={t("fields.status")} />
+                  <SelectValue placeholder={t("fields.status", "Status")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
-                    {t("common.all")} {t("fields.status")}
+                    {t("common.all", "All")} {t("fields.status", "Statuses")}
                   </SelectItem>
                   <SelectItem value="in-stock">
-                    {t("status.inStock")}
+                    {t("status.inStock", "In Stock")}
                   </SelectItem>
                   <SelectItem value="low-stock">
-                    {t("status.lowStock")}
+                    {t("status.lowStock", "Low Stock")}
                   </SelectItem>
                   <SelectItem value="out-of-stock">
-                    {t("status.outOfStock")}
+                    {t("status.outOfStock", "Out of Stock")}
                   </SelectItem>
                 </SelectContent>
               </Select>
               <Button variant="outline" size="icon">
                 <Filter className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon">
-                <RefreshCw className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  fetchProducts();
+                  fetchBoxStocks();
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
               </Button>
               <Button variant="outline" size="icon">
                 <Download className="h-4 w-4" />
@@ -237,73 +217,96 @@ const BoxedInventory = () => {
             </div>
           </div>
 
+          {/* Debug info - can be removed in production */}
+          {error && (
+            <div className="mb-4 p-2 bg-red-50 border border-red-100 rounded text-sm">
+              <div className="text-red-500">Error: {error}</div>
+            </div>
+          )}
+
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("fields.sku")}</TableHead>
-                  <TableHead>{t("fields.productName")}</TableHead>
-                  <TableHead>{t("fields.category")}</TableHead>
+                  <TableHead>{t("fields.sku", "SKU")}</TableHead>
+                  <TableHead>
+                    {t("fields.productName", "Product Name")}
+                  </TableHead>
+                  <TableHead>{t("fields.category", "Category")}</TableHead>
                   <TableHead className="text-right">
-                    {t("fields.boxQuantity")}
+                    {t("fields.boxQuantity", "Box Quantity")}
                   </TableHead>
                   <TableHead className="text-right">
-                    {t("fields.pairsPerBox")}
+                    {t("fields.pairsPerBox", "Pairs Per Box")}
                   </TableHead>
                   <TableHead className="text-right">
-                    {t("fields.totalPairs")}
+                    {t("fields.totalPairs", "Total Pairs")}
                   </TableHead>
-                  <TableHead>{t("fields.lastUpdated")}</TableHead>
-                  <TableHead>{t("fields.status")}</TableHead>
+                  <TableHead>
+                    {t("fields.lastUpdated", "Last Updated")}
+                  </TableHead>
+                  <TableHead>{t("fields.status", "Status")}</TableHead>
                   <TableHead className="text-right">
-                    {t("common.actions")}
+                    {t("common.actions", "Actions")}
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockInventoryData.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.sku}</TableCell>
-                    <TableCell>{item.productName}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell className="text-right">
-                      {item.boxQuantity}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {item.pairsPerBox}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {item.totalPairs}
-                    </TableCell>
-                    <TableCell>{item.lastUpdated}</TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewItem(item)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditItem(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteItem(item)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                      <p className="mt-2 text-sm text-gray-500">
+                        {t("common.loading", "Loading inventory data...")}
+                      </p>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredInventory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-4">
+                      <p className="text-sm text-gray-500">
+                        {searchQuery ||
+                        categoryFilter !== "all" ||
+                        statusFilter !== "all"
+                          ? t(
+                              "common.noMatchingResults",
+                              "No matching results found",
+                            )
+                          : t("common.noData", "No inventory data available")}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInventory.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.sku}</TableCell>
+                      <TableCell>{item.productName}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell className="text-right">
+                        {item.boxQuantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.pairsPerBox}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.totalPairs}
+                      </TableCell>
+                      <TableCell>{formatDate(item.lastUpdated)}</TableCell>
+                      <TableCell>{getStatusBadge(item.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewItem(item)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -311,7 +314,12 @@ const BoxedInventory = () => {
         <CardFooter>
           <div className="w-full flex justify-between items-center">
             <div className="text-sm text-gray-500">
-              {t("common.showing")} 1-5 {t("common.of")} 5 {t("common.items")}
+              {t("common.showing", "Showing")} {filteredInventory.length}{" "}
+              {t("common.of", "of")} {boxedInventorySummary.length}{" "}
+              {t("common.items", "items")}
+              {searchQuery && (
+                <span className="ml-1">filtered by "{searchQuery}"</span>
+              )}
             </div>
             <Pagination>
               <PaginationContent>
@@ -324,12 +332,6 @@ const BoxedInventory = () => {
                   </PaginationLink>
                 </PaginationItem>
                 <PaginationItem>
-                  <PaginationLink href="#">2</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">3</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
                   <PaginationNext href="#" />
                 </PaginationItem>
               </PaginationContent>
@@ -338,179 +340,18 @@ const BoxedInventory = () => {
         </CardFooter>
       </Card>
 
-      {/* Add Box Stock Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t("inventory.addBoxStock")}</DialogTitle>
-            <DialogDescription>
-              {t("dialogs.addBoxStockDesc")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sku">{t("fields.sku")}</Label>
-                <Input id="sku" placeholder={t("placeholders.enterSku")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="productName">{t("fields.productName")}</Label>
-                <Input
-                  id="productName"
-                  placeholder={t("placeholders.enterProductName")}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">{t("fields.category")}</Label>
-                <Select>
-                  <SelectTrigger id="category">
-                    <SelectValue
-                      placeholder={t("placeholders.selectCategory")}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="boys-shoes">Boys Shoes</SelectItem>
-                    <SelectItem value="girls-shoes">Girls Shoes</SelectItem>
-                    <SelectItem value="boys-sandals">Boys Sandals</SelectItem>
-                    <SelectItem value="girls-sandals">Girls Sandals</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="boxQuantity">{t("fields.boxQuantity")}</Label>
-                <Input id="boxQuantity" type="number" min="0" placeholder="0" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="pairsPerBox">{t("fields.pairsPerBox")}</Label>
-                <Input id="pairsPerBox" type="number" min="1" placeholder="1" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="receivedDate">{t("fields.incomingDate")}</Label>
-                <Input id="receivedDate" type="date" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">
-                {t("fields.notes")} ({t("common.optional")})
-              </Label>
-              <Input
-                id="notes"
-                placeholder={t("placeholders.additionalInfo")}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit">{t("inventory.addBoxStock")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Box Stock Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t("dialogs.editBoxStock")}</DialogTitle>
-            <DialogDescription>
-              {t("dialogs.editBoxStockDesc")}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedItem && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-sku">{t("fields.sku")}</Label>
-                  <Input id="edit-sku" defaultValue={selectedItem.sku} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-productName">
-                    {t("fields.productName")}
-                  </Label>
-                  <Input
-                    id="edit-productName"
-                    defaultValue={selectedItem.productName}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-category">{t("fields.category")}</Label>
-                  <Select defaultValue={selectedItem.category.toLowerCase()}>
-                    <SelectTrigger id="edit-category">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="boys-shoes">Boys Shoes</SelectItem>
-                      <SelectItem value="girls-shoes">Girls Shoes</SelectItem>
-                      <SelectItem value="boys-sandals">Boys Sandals</SelectItem>
-                      <SelectItem value="girls-sandals">
-                        Girls Sandals
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-boxQuantity">
-                    {t("fields.boxQuantity")}
-                  </Label>
-                  <Input
-                    id="edit-boxQuantity"
-                    type="number"
-                    min="0"
-                    defaultValue={selectedItem.boxQuantity}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-pairsPerBox">
-                    {t("fields.pairsPerBox")}
-                  </Label>
-                  <Input
-                    id="edit-pairsPerBox"
-                    type="number"
-                    min="1"
-                    defaultValue={selectedItem.pairsPerBox}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-lastUpdated">
-                    {t("fields.lastUpdated")}
-                  </Label>
-                  <Input
-                    id="edit-lastUpdated"
-                    type="date"
-                    defaultValue={selectedItem.lastUpdated}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit">{t("common.saveChanges")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* View Box Stock Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>{t("dialogs.boxStockDetails")}</DialogTitle>
+            <DialogTitle>
+              {t("dialogs.boxStockDetails", "Box Stock Details")}
+            </DialogTitle>
             <DialogDescription>
-              {t("dialogs.boxStockDetailsDesc")}
+              {t(
+                "dialogs.boxStockDetailsDesc",
+                "Detailed information about this box stock item.",
+              )}
             </DialogDescription>
           </DialogHeader>
           {selectedItem && (
@@ -518,13 +359,13 @@ const BoxedInventory = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.sku")}
+                    {t("fields.sku", "SKU")}
                   </h3>
                   <p className="mt-1">{selectedItem.sku}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.productName")}
+                    {t("fields.productName", "Product Name")}
                   </h3>
                   <p className="mt-1">{selectedItem.productName}</p>
                 </div>
@@ -532,13 +373,13 @@ const BoxedInventory = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.category")}
+                    {t("fields.category", "Category")}
                   </h3>
                   <p className="mt-1">{selectedItem.category}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.status")}
+                    {t("fields.status", "Status")}
                   </h3>
                   <div className="mt-1">
                     {getStatusBadge(selectedItem.status)}
@@ -548,72 +389,35 @@ const BoxedInventory = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.boxQuantity")}
+                    {t("fields.boxQuantity", "Box Quantity")}
                   </h3>
                   <p className="mt-1">{selectedItem.boxQuantity}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.pairsPerBox")}
+                    {t("fields.pairsPerBox", "Pairs Per Box")}
                   </h3>
                   <p className="mt-1">{selectedItem.pairsPerBox}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    {t("fields.totalPairs")}
+                    {t("fields.totalPairs", "Total Pairs")}
                   </h3>
                   <p className="mt-1">{selectedItem.totalPairs}</p>
                 </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">
-                  {t("fields.lastUpdated")}
+                  {t("fields.lastUpdated", "Last Updated")}
                 </h3>
-                <p className="mt-1">{selectedItem.lastUpdated}</p>
+                <p className="mt-1">{formatDate(selectedItem.lastUpdated)}</p>
               </div>
             </div>
           )}
           <DialogFooter>
             <Button onClick={() => setIsViewDialogOpen(false)}>
-              {t("common.close")}
+              {t("common.close", "Close")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t("dialogs.confirmDeletion")}</DialogTitle>
-            <DialogDescription>
-              {t("dialogs.deleteBoxStockConfirmation")}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedItem && (
-            <div className="py-4">
-              <p className="text-sm">
-                <span className="font-medium">{t("fields.sku")}:</span>{" "}
-                {selectedItem.sku}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">{t("fields.productName")}:</span>{" "}
-                {selectedItem.productName}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">{t("fields.boxQuantity")}:</span>{" "}
-                {selectedItem.boxQuantity}
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button variant="destructive">{t("common.delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
